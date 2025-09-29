@@ -1,7 +1,11 @@
 fileFormatVersion: 2
-guid: ec536a7718376554185e4a856d5ae230
-PrefabImporter:
+guid: b9fca4100a7477741b3973b4ff2c405f
+MonoImporter:
   externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
   userData: 
   assetBundleName: 
   assetBundleVariant: 
@@ -10,5 +14,5 @@ AssetOrigin:
   productId: 107631
   packageName: Joystick Pack
   packageVersion: 2.1
-  assetPath: Assets/Prefabs/Variable Joystick.prefab
+  assetPath: Assets/Scripts/Scripts/Base/Joystick.cs
   uploadId: 301683

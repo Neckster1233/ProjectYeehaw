@@ -8,16 +8,21 @@ public class JoystickPlayerExample : MonoBehaviour
     public float speed = 8f;
     public VariableJoystick variableJoystick;
     public Rigidbody rb;
+    public Health health;
 
     [Header("Aiming / Firing")]
     public VariableJoystick aimJoystick; // second joystick to control aim
-    [Tooltip("Particle system used to visually represent projectiles. It should use World simulation space.")]
-    public ParticleSystem projectileParticleSystem;
-    [Tooltip("Initial speed applied to emitted particles (in world units/sec)")]
+    [Tooltip("Initial speed applied to spawned projectiles (in world units/sec)")]
     public float projectileSpeed = 15f;
-    [Tooltip("How many particles to emit per shot")]
+    [Tooltip("How many projectiles to spawn per shot")]
     public int particlesPerShot = 1;
+    [Tooltip("Damage applied by spawned projectile prefabs.")]
+    public int projectileDamage = 1;
     public float fireRate = 6f; // shots per second (auto-fire)
+    [Tooltip("Prefab to spawn when firing. This must be set for firing to work.")]
+    public GameObject projectilePrefab;
+    [Tooltip("Spawn offset forward from the player when instantiating projectile prefabs.")]
+    public float projectileSpawnOffset = 0.6f;
 
     // internal
     private Vector2 moveInput = Vector2.zero;
@@ -31,6 +36,12 @@ public class JoystickPlayerExample : MonoBehaviour
         if (rb != null)
         {
             rb.interpolation = RigidbodyInterpolation.Interpolate;
+        }
+
+        // if an EnemyManager exists, register this player's transform so enemies can find it cheaply
+        if (EnemyManager.Instance != null)
+        {
+            EnemyManager.PlayerTransform = transform;
         }
     }
 
@@ -130,7 +141,8 @@ public class JoystickPlayerExample : MonoBehaviour
 
     void HandleAutoFire()
     {
-        if (projectileParticleSystem == null || fireRate <= 0f) return;
+    // Only return if firing is disabled or no prefab is assigned.
+    if (fireRate <= 0f || projectilePrefab == null) return;
 
         fireTimer -= Time.deltaTime;
         if (fireTimer <= 0f)
@@ -143,14 +155,37 @@ public class JoystickPlayerExample : MonoBehaviour
     void FireProjectile(Vector3 dir)
     {
         if (dir.sqrMagnitude < 0.001f) dir = transform.forward;
-        if (projectileParticleSystem == null) return;
+        // If a projectile prefab is provided, instantiate it (preferred). Otherwise fall back to particle emission.
+        if (projectilePrefab != null)
+        {
+            for (int i = 0; i < Mathf.Max(1, particlesPerShot); i++)
+            {
+                Vector3 spawnPos = transform.position + dir.normalized * projectileSpawnOffset;
+                Quaternion rot = Quaternion.LookRotation(dir.normalized);
+                var go = Instantiate(projectilePrefab, spawnPos, rot);
 
-        // Emit particles with an initial velocity in world space.
-        var emitParams = new ParticleSystem.EmitParams();
-        emitParams.position = transform.position + dir.normalized * 0.6f;
-        emitParams.velocity = dir.normalized * projectileSpeed;
-        // applyShapeToPosition ensures the particle appears at that position even if the system has a shape.
-        emitParams.applyShapeToPosition = true;
-        projectileParticleSystem.Emit(emitParams, particlesPerShot);
+                // if the prefab has a Rigidbody, set its velocity; otherwise set its forward and Projectile.speed
+                var projRb = go.GetComponent<Rigidbody>();
+                var projComp = go.GetComponent<Projectile>();
+                if (projRb != null)
+                {
+                    projRb.linearVelocity = dir.normalized * projectileSpeed;
+                    // if there's also a Projectile component, initialize it for damage/owner/lifetime
+                    projComp?.Init(dir.normalized, projectileSpeed, projectileDamage, gameObject);
+                }
+                else if (projComp != null)
+                {
+                    projComp.Init(dir.normalized, projectileSpeed, projectileDamage, gameObject);
+                }
+                else
+                {
+                    // no rigidbody and no Projectile component: fallback to orienting the visual
+                    go.transform.forward = dir.normalized;
+                }
+            }
+            return;
+        }
+
+    // prefab path handles spawning and initialization; nothing else to do here.
     }
 }
